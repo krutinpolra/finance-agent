@@ -7,3 +7,4 @@ __pycache__/
 *.csv
 !sample_data/*.csv
 !eval_data/*.csv
+node_modules/
