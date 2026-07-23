@@ -63,12 +63,48 @@ When you have a final answer, respond with ONLY a JSON object on one line,
 nothing else: {"category": "...", "confidence": "high" or "low"}
 """
 
+# Used for the Phase 2 self-correction pass: a transaction only reaches this
+# prompt after the first pass already tried the tool and its own judgment and
+# still came back "low" - so this version gets category definitions to work
+# from and is pushed to commit to an answer instead of defaulting to "low" again.
+SYSTEM_PROMPT_RECHECK = """You are re-checking a bank transaction that was categorized
+with low confidence on a first pass. Look more closely and give a more careful
+final answer. The lookup_known_merchant tool is still available if you haven't
+ruled it out yet.
 
-def categorize_transaction(client, description: str, amount: float) -> dict:
+Category definitions:
+- Groceries: supermarkets, grocery stores
+- Dining & Restaurants: restaurants, fast food, takeout, delivery
+- Coffee & Cafes: coffee shops, cafes
+- Transportation: rideshare, public transit, parking, tolls, fuel
+- Shopping: retail, online marketplaces, general merchandise
+- Subscriptions: recurring digital services (streaming, software, memberships)
+- Utilities: electricity, water, gas, internet, phone bills
+- Rent/Mortgage: housing payments
+- Entertainment: movies, events, hobbies, recreation
+- Health & Fitness: gyms, medical, pharmacies
+- Income: deposits, paychecks, refunds
+- Other: anything that doesn't clearly fit above
+
+First, reason in one short sentence about what the merchant or description most
+likely is. Then commit to your best answer - only use "low" confidence if the
+description is genuinely ambiguous even after reasoning about it (e.g. a generic
+transfer with no merchant info at all).
+
+Respond with ONLY a JSON object on one line, nothing else:
+{"category": "...", "confidence": "high" or "low", "reasoning": "..."}
+"""
+
+
+def categorize_transaction(client, description: str, amount: float, strict: bool = False) -> dict:
     """Runs the think -> act -> observe loop for a single transaction.
+
+    With strict=True, uses the stricter re-check prompt (Phase 2 self-correction
+    pass) instead of the normal first-pass prompt.
 
     Returns a dict like {"category": "Coffee & Cafes", "confidence": "high"}.
     """
+    system_prompt = SYSTEM_PROMPT_RECHECK if strict else SYSTEM_PROMPT
     messages = [{
         "role": "user",
         "content": f"Transaction: '{description}', amount: ${amount}."
@@ -78,7 +114,7 @@ def categorize_transaction(client, description: str, amount: float) -> dict:
         response = client.messages.create(
             model="claude-haiku-4-5",
             max_tokens=300,
-            system=SYSTEM_PROMPT,
+            system=system_prompt,
             tools=TOOLS,
             messages=messages,
         )
@@ -87,19 +123,19 @@ def categorize_transaction(client, description: str, amount: float) -> dict:
         messages.append({"role": "assistant", "content": response.content})
 
         if response.stop_reason == "tool_use":
-            tool_call = next(b for b in response.content if b.type == "tool_use")
-            result = lookup_known_merchant(tool_call.input["merchant_keyword"])
-
-            # Hand the result back, tagged with which tool call it answers
-            messages.append({
-                "role": "user",
-                "content": [{
+            # Claude can request several tool calls in one turn (parallel tool
+            # use) - every tool_use block here needs a matching tool_result in
+            # the next message, or the API rejects the follow-up request.
+            tool_results = [
+                {
                     "type": "tool_result",
-                    "tool_use_id": tool_call.id,
-                    "content": result,
-                }]
-            })
-            continue  # loop back - Claude sees the result and responds again
+                    "tool_use_id": block.id,
+                    "content": lookup_known_merchant(block.input["merchant_keyword"]),
+                }
+                for block in response.content if block.type == "tool_use"
+            ]
+            messages.append({"role": "user", "content": tool_results})
+            continue  # loop back - Claude sees the result(s) and responds again
 
         # stop_reason wasn't "tool_use", so this is Claude's final answer
         final_text = next(b.text for b in response.content if b.type == "text")
