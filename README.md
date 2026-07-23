@@ -5,11 +5,11 @@ mistakes, and gives you a plain-English spending summary — built from scratch 
 loops and multi-agent systems.
 
 ## Status
-🚧 Phase 0 — project scaffold. Agent logic not built yet.
+🚧 Phase 1 — hand-rolled agent loop with tool-calling categorizes uploaded transactions.
 
 ## Roadmap
 - [x] Phase 0 — repo, environment, "hello agent" connectivity test
-- [ ] Phase 1 — raw agent loop: categorize a CSV of transactions, tool-calling by hand
+- [x] Phase 1 — raw agent loop: categorize a CSV of transactions, tool-calling by hand
 - [ ] Phase 2 — self-correction loop: agent flags low-confidence categories and re-checks itself
 - [ ] Phase 3 — multi-agent: add a Budget Advisor agent that reviews the categorized data
 - [ ] Phase 4 — polish: eval set, cost logging, deployed demo, write-up
