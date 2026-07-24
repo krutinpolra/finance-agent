@@ -7,6 +7,9 @@ hands the result to a second agent that reviews the numbers and gives budget adv
 Built from scratch (no LangChain/CrewAI/agent framework) specifically to learn how agent
 loops and multi-agent systems actually work under the hood, not just how to call one.
 
+**Live demo:** https://finance-agent-xt7dfaw8bw6sgyjptd9drr.streamlit.app
+_(free-tier hosting — the app sleeps after inactivity, so the first load can take ~30-50s to wake up)_
+
 ## The problem
 
 Categorizing spending from a real statement is tedious and the input is never clean: one
@@ -78,7 +81,7 @@ the pattern across four different agents, was the actual point of the project.
       vision/document input)
 - [x] Hand-labeled eval set + accuracy script
 - [ ] Cost/latency logging per run
-- [ ] Deployed live demo
+- [x] Deployed live demo
 - [ ] Write-up on design decisions
 
 ## Running locally
@@ -111,4 +114,5 @@ deliberately ambiguous ones) and reports accuracy plus every miss.
 
 ## Deployment
 
-Live demo: _(add link here once deployed)_
+Deployed automatically from the `main` branch via Streamlit Community Cloud.
+Live demo: https://finance-agent-xt7dfaw8bw6sgyjptd9drr.streamlit.app
